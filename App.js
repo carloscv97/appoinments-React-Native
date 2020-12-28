@@ -1,61 +1,96 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, StyleSheet, View, FlatList, TouchableHighlight, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import Appointment from './components/Appointment';
 import Form from './components/Form';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-toast-message';
+
 
 
 const App = () => {
 
    const [appointments, setAppointments] = useState([]);
-
    const [showForm, setShowForm] = useState(false)
 
-   const handleDeletePatient = (id) => {
+   useEffect(() => {
+      handleGetPatients();
+   }, [])
+
+   const handleDeletePatient = async (id) => {
       const newList = appointments.filter(el => el.id !== id)
-      setAppointments(newList);
+      await AsyncStorage.setItem('appoinments', JSON.stringify(newList))
+      Toast.show({
+         type: 'success',
+         position: 'top',
+         text1: 'Success',
+         text2: 'The appoinment was deleted'
+      });
+      handleGetPatients();
    }
 
-   const handleAddPatient = (data) => {
-      setAppointments([
-         ...appointments,
-         data
-      ])
+   const handleGetPatients = async () => {
+      try {
+         const patients = await AsyncStorage.getItem('appoinments');
+         if (patients) {
+            setAppointments(JSON.parse(patients))
+         }
+      } catch (error) {
+         console.log(error);
+      }
+   }
 
-      // Hidde Form 
-      setShowForm(false)
+   const handleAddPatient = async (data) => {
+      try {
+         const newArr = [...appointments, data];
+         await AsyncStorage.setItem('appoinments', JSON.stringify(newArr))
+         Toast.show({
+            type: 'success',
+            position: 'top',
+            text1: 'Success',
+            text2: 'The appoinment was saved'
+         });
+         // Hidde Form
+         handleGetPatients();
+         setShowForm(false)
+      } catch (error) {
+         console.log(error);
+      }
    }
 
    const handleShowForm = () => setShowForm(true)
 
    return (
-      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-         <View style={styles.content}>
-            <Text style={styles.title}>Appointment Administrator</Text>
+      <>
+         <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+            <View style={styles.content}>
+               <Text style={styles.title}>Appointment Administrator</Text>
 
-            <View style={styles.body}>
-               {
-                  showForm
-                     ? <Form handleAddPatient={handleAddPatient} setShowForm={setShowForm} />
-                     :
-                     (
-                        <>
-                           <FormButton handleShowForm={handleShowForm} />
-                           <Text style={styles.subTitle}>{appointments.length > 0 ? `Administrate Your Appointments (${appointments.length})` : 'You do not have Appointments'} </Text>
-                           <FlatList
-                              style={styles.list}
-                              data={appointments}
-                              renderItem={({ item }) => (
-                                 <Appointment item={item} handleDeletePatient={handleDeletePatient} />
-                              )}
-                              keyExtractor={el => el.id}
-                           />
-                        </>
-                     )
+               <View style={styles.body}>
+                  {
+                     showForm
+                        ? <Form handleAddPatient={handleAddPatient} setShowForm={setShowForm} />
+                        :
+                        (
+                           <>
+                              <FormButton handleShowForm={handleShowForm} />
+                              <Text style={styles.subTitle}>{appointments.length > 0 ? `Administrate Your Appointments (${appointments.length})` : 'You do not have Appointments'} </Text>
+                              <FlatList
+                                 style={styles.list}
+                                 data={appointments}
+                                 renderItem={({ item }) => (
+                                    <Appointment item={item} handleDeletePatient={handleDeletePatient} />
+                                 )}
+                                 keyExtractor={el => el.id.toString()}
+                              />
+                           </>
+                        )
 
-               }
+                  }
+               </View>
             </View>
-         </View>
-      </TouchableWithoutFeedback>
+         </TouchableWithoutFeedback>
+         <Toast ref={(ref) => Toast.setRef(ref)} />
+      </>
    );
 };
 
